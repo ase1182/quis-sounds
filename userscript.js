@@ -232,6 +232,13 @@
   }
 
 
+  function isVisible(el) {
+    if (!el || !(el instanceof Element)) return false;
+    const rect = el.getBoundingClientRect();
+    if (rect.width < 8 || rect.height < 8) return false;
+    return rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth;
+  }
+
   function findAnswerButtonByMark(mark) {
     const selectors = 'button, [role="button"], label, [tabindex]';
     const candidates = Array.from(document.querySelectorAll(selectors));
@@ -243,17 +250,35 @@
       return el.closest('button, [role="button"], label, [tabindex]') || el;
     }
 
-    // 2) テキストが取りづらいUI向け: 「分からないので答えを見る」付近の左側ボタン群をフォールバック探索
+    // 2) テキストが取りづらいUI向け: 「分からないので答えを見る」と同じ行の左側ボタン群を探索
     const revealBtn = candidates.find((el) => /分からないので答えを見る/.test((el.innerText || el.textContent || '').trim()));
     if (revealBtn) {
-      const scope = revealBtn.closest('section, article, main, div') || document.body;
-      const localButtons = Array.from(scope.querySelectorAll('button, [role="button"], [tabindex]'));
-      const symbolButtons = localButtons.filter((el) => {
-        const t = (el.innerText || el.textContent || el.getAttribute?.('aria-label') || '').trim();
-        return /[〇○◯✕✖×]/.test(t);
-      });
-      for (const el of symbolButtons) {
-        if (extractMarkFromElement(el) === mark) return el;
+      const row = revealBtn.closest('div, section, article') || revealBtn.parentElement || document.body;
+      const rowButtons = Array.from(row.querySelectorAll('button, [role="button"], [tabindex]')).filter(isVisible);
+
+      // 記号が取れる場合
+      for (const el of rowButtons) {
+        const detected = extractMarkFromElement(el);
+        if (detected === mark) return el;
+      }
+
+      // 記号が取れない場合: revealボタンより左にある小〜中サイズのボタンを左→右順に採用
+      const revealRect = revealBtn.getBoundingClientRect();
+      const leftButtons = rowButtons
+        .filter((el) => {
+          if (el === revealBtn) return false;
+          const r = el.getBoundingClientRect();
+          if (r.right >= revealRect.left) return false;
+          if (r.width > 220 || r.height > 120) return false;
+          return true;
+        })
+        .sort((a, b) => a.getBoundingClientRect().left - b.getBoundingClientRect().left);
+
+      if (leftButtons.length >= 2) {
+        return mark === 'o' ? leftButtons[0] : leftButtons[1];
+      }
+      if (leftButtons.length === 1) {
+        return leftButtons[0];
       }
     }
 
