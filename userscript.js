@@ -187,6 +187,10 @@
         }
 
         // 2) ユーザー要望: 押した記号と、回答後に下部に表示される記号を比較
+        const nodeEl = n && n.nodeType === Node.ELEMENT_NODE ? n : n?.parentElement;
+        const clickable = nodeEl?.closest?.('button, [role="button"], label');
+        if (clickable && isAnswerButton(clickable)) continue;
+
         const displayedMark = extractResultMarkFromNode(n);
         if (!displayedMark || !pendingAnswer.selected) continue;
 
@@ -372,7 +376,7 @@
       if (!qid) return;
       pendingAnswer = { questionId: qid, selected, at: Date.now() };
       log('answer clicked', pendingAnswer);
-      startFlashVerdictWatch();
+      // startFlashVerdictWatch(); // 判定テキストの誤検知対策で無効化
     }, true);
   }
 
@@ -430,7 +434,7 @@
       if (!document.documentElement || !document.body) return setTimeout(start, 50);
       installClickWatcher();
       installMutationWatcher();
-      installGlobalVerdictWatcher();
+      // installGlobalVerdictWatcher(); // 誤検知が多いため無効化
       window.addEventListener('keydown', handleKeydown, true);
       log('watchers installed');
     };
