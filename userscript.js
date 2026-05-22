@@ -170,19 +170,27 @@
     for (const mutation of mutations) {
       const candidates = [mutation.target, ...mutation.addedNodes];
       for (const n of candidates) {
-        const mark = extractResultMarkFromNode(n);
-        let result = '';
+        const txt = (n.textContent || '').trim();
 
-        // 明示的な判定テキストを最優先（アイコンUIでの推定ズレを防ぐ）
-        const txt = (n.textContent || '');
-        if (/不正解|incorrect/i.test(txt)) result = 'wrong';
-        else if (/正解|correct/i.test(txt)) result = 'correct';
-
-        // テキストが取れない場合のみ、選択記号との一致で推定
-        if (!result && mark && pendingAnswer.selected) {
-          result = mark === pendingAnswer.selected ? 'correct' : 'wrong';
+        // 1) まず明示テキスト判定
+        if (/不正解|incorrect/i.test(txt)) {
+          playOnce('wrong');
+          resolvedQuestionId = qid;
+          pendingAnswer = null;
+          return;
         }
-        if (!result) continue;
+        if (/正解|correct/i.test(txt)) {
+          playOnce('correct');
+          resolvedQuestionId = qid;
+          pendingAnswer = null;
+          return;
+        }
+
+        // 2) ユーザー要望: 押した記号と、回答後に下部に表示される記号を比較
+        const displayedMark = extractResultMarkFromNode(n);
+        if (!displayedMark || !pendingAnswer.selected) continue;
+
+        const result = displayedMark === pendingAnswer.selected ? 'correct' : 'wrong';
         playOnce(result);
         resolvedQuestionId = qid;
         pendingAnswer = null;
