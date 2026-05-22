@@ -233,12 +233,30 @@
 
 
   function findAnswerButtonByMark(mark) {
-    const candidates = Array.from(document.querySelectorAll('button, [role="button"], label'));
+    const selectors = 'button, [role="button"], label, [tabindex]';
+    const candidates = Array.from(document.querySelectorAll(selectors));
+
+    // 1) 既存ロジックで見つかる場合を優先
     for (const el of candidates) {
       if (!isAnswerButton(el)) continue;
       if (extractMarkFromElement(el) !== mark) continue;
-      return el.closest('button, [role="button"], label') || el;
+      return el.closest('button, [role="button"], label, [tabindex]') || el;
     }
+
+    // 2) テキストが取りづらいUI向け: 「分からないので答えを見る」付近の左側ボタン群をフォールバック探索
+    const revealBtn = candidates.find((el) => /分からないので答えを見る/.test((el.innerText || el.textContent || '').trim()));
+    if (revealBtn) {
+      const scope = revealBtn.closest('section, article, main, div') || document.body;
+      const localButtons = Array.from(scope.querySelectorAll('button, [role="button"], [tabindex]'));
+      const symbolButtons = localButtons.filter((el) => {
+        const t = (el.innerText || el.textContent || el.getAttribute?.('aria-label') || '').trim();
+        return /[〇○◯✕✖×]/.test(t);
+      });
+      for (const el of symbolButtons) {
+        if (extractMarkFromElement(el) === mark) return el;
+      }
+    }
+
     return null;
   }
 
@@ -367,7 +385,7 @@
       installClickWatcher();
       installMutationWatcher();
       installGlobalVerdictWatcher();
-      document.addEventListener('keydown', handleKeydown, true);
+      window.addEventListener('keydown', handleKeydown, true);
       log('watchers installed');
     };
     start();
