@@ -173,24 +173,22 @@
       for (const n of candidates) {
         const txt = (n.textContent || '').trim();
 
-        // 1) まず明示テキスト判定
-        if (/不正解|incorrect/i.test(txt)) {
-          playOnce('wrong');
-          resolvedQuestionId = qid;
-          pendingAnswer = null;
-          return;
-        }
-        if (/正解|correct/i.test(txt)) {
-          playOnce('correct');
+        // 1) テキストから「正解の記号」が取れる場合のみ判定（例: 正解は〇）
+        const textMarkMatch = txt.match(/正解[^〇○◯✕✖×]*([〇○◯✕✖×])|([〇○◯✕✖×])[^〇○◯✕✖×]*が正解/);
+        const textMarkRaw = textMarkMatch ? (textMarkMatch[1] || textMarkMatch[2] || '') : '';
+        const correctMarkFromText = normalizeMark(textMarkRaw);
+        if (correctMarkFromText && pendingAnswer.selected) {
+          const result = correctMarkFromText === pendingAnswer.selected ? 'correct' : 'wrong';
+          playOnce(result);
           resolvedQuestionId = qid;
           pendingAnswer = null;
           return;
         }
 
-        // 2) 押下直後は記号比較を遅延させ、まず明示テキスト判定を待つ（誤判定防止）
+        // 2) 押下直後は記号比較を遅延させる（描画途中の誤判定防止）
         if (Date.now() - pendingAnswer.at < MARK_COMPARE_DELAY_MS) continue;
 
-        // 3) ユーザー要望: 押した記号と、回答後に下部に表示される記号を比較
+        // 3) ユーザー要望: 押した記号と、回答後に表示される記号を比較
         const nodeEl = n && n.nodeType === Node.ELEMENT_NODE ? n : n?.parentElement;
         const clickable = nodeEl?.closest?.('button, [role="button"], label');
         if (clickable && isAnswerButton(clickable)) continue;
