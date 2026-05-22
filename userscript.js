@@ -24,6 +24,7 @@
   let resolvedQuestionId = null;
   let lastNextAt = 0;
   let lastAnswerHotkeyAt = 0;
+  const MARK_COMPARE_DELAY_MS = 1200;
 
   const correctAudio = CORRECT_SOUND_URL ? new Audio(CORRECT_SOUND_URL) : null;
   const wrongAudio = WRONG_SOUND_URL ? new Audio(WRONG_SOUND_URL) : null;
@@ -186,7 +187,10 @@
           return;
         }
 
-        // 2) ユーザー要望: 押した記号と、回答後に下部に表示される記号を比較
+        // 2) 押下直後は記号比較を遅延させ、まず明示テキスト判定を待つ（誤判定防止）
+        if (Date.now() - pendingAnswer.at < MARK_COMPARE_DELAY_MS) continue;
+
+        // 3) ユーザー要望: 押した記号と、回答後に下部に表示される記号を比較
         const nodeEl = n && n.nodeType === Node.ELEMENT_NODE ? n : n?.parentElement;
         const clickable = nodeEl?.closest?.('button, [role="button"], label');
         if (clickable && isAnswerButton(clickable)) continue;
