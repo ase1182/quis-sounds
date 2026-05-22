@@ -23,6 +23,7 @@
   let pendingAnswer = null;
   let resolvedQuestionId = null;
   let lastNextAt = 0;
+  let lastAnswerHotkeyAt = 0;
 
   const correctAudio = CORRECT_SOUND_URL ? new Audio(CORRECT_SOUND_URL) : null;
   const wrongAudio = WRONG_SOUND_URL ? new Audio(WRONG_SOUND_URL) : null;
@@ -230,6 +231,30 @@
     return null;
   }
 
+
+  function findAnswerButtonByMark(mark) {
+    const candidates = Array.from(document.querySelectorAll('button, [role="button"], label'));
+    for (const el of candidates) {
+      if (!isAnswerButton(el)) continue;
+      if (extractMarkFromElement(el) !== mark) continue;
+      return el.closest('button, [role="button"], label') || el;
+    }
+    return null;
+  }
+
+  function triggerAnswerByMark(mark) {
+    const qid = currentQuestionId();
+    if (!qid) return false;
+
+    const btn = findAnswerButtonByMark(mark);
+    if (!btn) return false;
+
+    pendingAnswer = { questionId: qid, selected: mark, at: Date.now() };
+    btn.click();
+    startFlashVerdictWatch();
+    return true;
+  }
+
   function shouldIgnoreKeydown(event) {
     if (event.defaultPrevented || event.repeat || event.isComposing) return true;
     const target = event.target;
@@ -254,6 +279,31 @@
     nextBtn.click();
     lastNextAt = now;
     log('next question via Space key');
+  }
+
+  function tryAnswerByHotkey(event) {
+    const key = (event.key || '').toLowerCase();
+    if (key !== 'f' && key !== 'j') return false;
+    if (shouldIgnoreKeydown(event)) return true;
+
+    const now = Date.now();
+    if (now - lastAnswerHotkeyAt < 250) return true;
+
+    const mark = key === 'f' ? 'o' : 'x';
+    const clicked = triggerAnswerByMark(mark);
+    if (!clicked) return true;
+
+    event.preventDefault();
+    event.stopPropagation();
+    ensureUnlocked();
+    lastAnswerHotkeyAt = now;
+    log('answer by hotkey', key, mark);
+    return true;
+  }
+
+  function handleKeydown(event) {
+    if (tryAnswerByHotkey(event)) return;
+    tryGoNextQuestionByShortcut(event);
   }
 
   function installClickWatcher() {
@@ -317,7 +367,7 @@
       installClickWatcher();
       installMutationWatcher();
       installGlobalVerdictWatcher();
-      document.addEventListener('keydown', tryGoNextQuestionByShortcut, true);
+      document.addEventListener('keydown', handleKeydown, true);
       log('watchers installed');
     };
     start();
