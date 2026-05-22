@@ -172,11 +172,15 @@
       for (const n of candidates) {
         const mark = extractResultMarkFromNode(n);
         let result = '';
-        if (mark) result = mark === pendingAnswer.selected ? 'correct' : 'wrong';
-        if (!result) {
-          const txt = (n.textContent || '');
-          if (/不正解|incorrect/i.test(txt)) result = 'wrong';
-          else if (/正解|correct/i.test(txt)) result = 'correct';
+
+        // 明示的な判定テキストを最優先（アイコンUIでの推定ズレを防ぐ）
+        const txt = (n.textContent || '');
+        if (/不正解|incorrect/i.test(txt)) result = 'wrong';
+        else if (/正解|correct/i.test(txt)) result = 'correct';
+
+        // テキストが取れない場合のみ、選択記号との一致で推定
+        if (!result && mark && pendingAnswer.selected) {
+          result = mark === pendingAnswer.selected ? 'correct' : 'wrong';
         }
         if (!result) continue;
         playOnce(result);
