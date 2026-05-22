@@ -392,6 +392,11 @@
 
   function installGlobalVerdictWatcher() {
     const observer = new MutationObserver((mutations) => {
+      if (!pendingAnswer) return;
+      const qid = currentQuestionId();
+      if (!qid || qid !== pendingAnswer.questionId) return;
+      if (resolvedQuestionId === qid) return;
+
       for (const mutation of mutations) {
         const nodes = [mutation.target, ...mutation.addedNodes];
         for (const n of nodes) {
@@ -399,10 +404,14 @@
           if (!t) continue;
           if (/^不正解$/.test(t) || /\bincorrect\b/i.test(t)) {
             playOnce('wrong');
+            resolvedQuestionId = qid;
+            pendingAnswer = null;
             return;
           }
           if (/^正解$/.test(t) || /\bcorrect\b/i.test(t)) {
             playOnce('correct');
+            resolvedQuestionId = qid;
+            pendingAnswer = null;
             return;
           }
         }
